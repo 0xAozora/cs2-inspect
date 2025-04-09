@@ -30,7 +30,7 @@ One current limitation involves the blocking nature of `net.Dialer`, which can d
 ## Installation
 
 ```bash
-go get github.com/yourname/cs2-inspect
+go get github.com/0xAozora/cs2-inspect
 ```
 
 ## Usage

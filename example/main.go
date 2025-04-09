@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 	"unsafe"
 
@@ -98,14 +97,15 @@ func status(h *inspect.Handler) func(http.ResponseWriter, *http.Request) {
 
 		status := h.GetBotStatus()
 
-		w.Header().Set("Content-Type", "application/json")
+		response := map[string]int{
+			"Bots":         status[4],
+			"DISCONNECTED": status[0],
+			"CONNECTED":    status[1],
+			"LOGGED_IN":    status[2],
+			"INGAME":       status[3],
+		}
 
-		w.Write([]byte{'{'})
-		w.Write([]byte("\"Bots\":" + strconv.Itoa(status[4])))
-		w.Write([]byte(",\"DISCONNECTED\":" + strconv.Itoa(status[0])))
-		w.Write([]byte(",\"CONNECTED\":" + strconv.Itoa(status[1])))
-		w.Write([]byte(",\"LOGGED_IN\":" + strconv.Itoa(status[2])))
-		w.Write([]byte(",\"INGAME\":" + strconv.Itoa(status[3])))
-		w.Write([]byte{'}'})
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
 	}
 }

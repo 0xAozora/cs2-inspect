@@ -38,7 +38,7 @@ func main() {
 	// You could do something fancy like implement an Hashicorp Vault Authenticator
 	// Otherwise a default authenticator will be used if a shared secret it provided
 	var authHandler inspect.AuthenticationHandler
-	//mailer := auth.NewMailer("smtp.example.com", "username", "password")
+	//mailer := auth.NewMailer("smtp.example.com", "username", "password", &logger)
 	//authHandler = auth.NewAuthenticationHandler(mailer)
 
 	// Handler

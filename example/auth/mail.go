@@ -3,12 +3,13 @@ package auth
 import (
 	"fmt"
 	"regexp"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 // IMAP server settings
@@ -37,15 +38,18 @@ type Mailer struct {
 	IMAPServer   string
 	IMAPUsername string
 	IMAPPassword string
+
+	log *zerolog.Logger
 }
 
-func NewMailer(server, username, password string) *Mailer {
+func NewMailer(server, username, password string, logger *zerolog.Logger) *Mailer {
 
 	mailer := Mailer{
 		responders:   map[string]chan string{},
 		IMAPServer:   server,
 		IMAPUsername: username,
 		IMAPPassword: password,
+		log:          logger,
 	}
 	mailer.connect()
 
@@ -57,7 +61,9 @@ func (m *Mailer) connect() {
 	for {
 		c, err := imapclient.DialTLS(m.IMAPServer, nil)
 		if err != nil {
-			fmt.Printf("Failed to connect to the IMAP server: %v\n", err)
+
+			m.log.Err(err).Msg("Failed to connect to the IMAP server")
+
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -65,11 +71,11 @@ func (m *Mailer) connect() {
 		// Log in to the IMAP server
 		loginCmd := c.Login(m.IMAPUsername, m.IMAPPassword)
 		if loginCmd == nil {
-			fmt.Println("Failed to perform a login")
+			m.log.Error().Msg("Failed to perform a login")
 			continue
 		}
 		if err := loginCmd.Wait(); err != nil {
-			fmt.Printf("Failed to log in: %v\n", err)
+			m.log.Err(err).Msg("Failed to log in")
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -77,13 +83,13 @@ func (m *Mailer) connect() {
 		// Select the mailbox
 		selectCmd := c.Select(IMAPMailbox, nil)
 		if selectCmd == nil {
-			fmt.Println("Failed to perform a select")
+			m.log.Error().Msg("Failed to perform a select")
 			continue
 		}
 
 		_, err = selectCmd.Wait()
 		if err != nil {
-			fmt.Printf("Failed to select mailbox: %v\n", err)
+			m.log.Err(err).Msg("Failed to select mailbox")
 			time.Sleep(5 * time.Second)
 			continue
 		}
@@ -135,7 +141,7 @@ func (m *Mailer) Poller() {
 		searchCmd := m.client.Search(&imap.SearchCriteria{Since: cutoffTime, NotFlag: []imap.Flag{imap.FlagSeen}}, &imap.SearchOptions{ReturnAll: true})
 		searchData, err := searchCmd.Wait()
 		if err != nil {
-			fmt.Printf("Failed to search for emails: %v\nReconnecting...\n", err)
+			m.log.Err(err).Msg("Failed to search for emails")
 			m.connect()
 			continue
 		}
@@ -152,13 +158,15 @@ func (m *Mailer) Poller() {
 			for next := fetchCmd.Next(); next != nil; next = fetchCmd.Next() {
 				msgBuffer, err := next.Collect()
 				if err != nil {
-					fmt.Printf("Failed to fetch email %d: %s\n", next.SeqNum, err.Error())
+					m.log.Err(err).
+						Uint32("seq", next.SeqNum).
+						Msg("Failed to fetch email")
 				}
 
 				m.checkMessage(msgBuffer)
 			}
 
-			fmt.Println("Finished checking emails.")
+			m.log.Debug().Msg("Finished checking emails")
 			_ = fetchCmd.Close()
 		}
 		m.respMutex.Unlock()
@@ -186,9 +194,10 @@ func (m *Mailer) checkMessage(msg *imapclient.FetchMessageBuffer) bool {
 		return false
 	}
 
-	fmt.Println("Found a matching email received within the last hour:")
-	fmt.Printf("Subject: %s\n", msg.Envelope.Subject)
-	fmt.Printf("From: %s\n", msg.Envelope.From[0].Host)
+	m.log.Debug().
+		Str("subject", msg.Envelope.Subject).
+		Str("from", msg.Envelope.From[0].Host).
+		Msg("Found a matching email")
 
 	for _, b := range msg.BodySection {
 
@@ -198,7 +207,9 @@ func (m *Mailer) checkMessage(msg *imapclient.FetchMessageBuffer) bool {
 			// Found a matching email with a capture group
 			loginCode := match[1] // Capture group content
 
-			fmt.Printf("Login Code: %s\n", loginCode)
+			log.Debug().
+				Str("code", string(loginCode)).
+				Msg("Found Login Code")
 
 			ch <- string(loginCode)
 			delete(m.responders, account)
@@ -206,8 +217,8 @@ func (m *Mailer) checkMessage(msg *imapclient.FetchMessageBuffer) bool {
 		}
 	}
 
-	fmt.Println("No Login Code found")
+	m.log.Debug().
+		Msg("No Login Code found in this mail")
 
-	fmt.Println(strings.Repeat("=", 40))
 	return false
 }

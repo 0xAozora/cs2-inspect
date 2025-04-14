@@ -25,11 +25,12 @@ One current limitation involves the blocking nature of `net.Dialer`, which can d
 - Metrics logging for monitoring
 - Token-based authentication system
 - Support for custom authenticators
+- SOCKS5 Proxy support
 
 ## Installation
 
 ```bash
-go get github.com/yourname/cs2-inspect
+go get github.com/0xAozora/cs2-inspect
 ```
 
 ## Usage

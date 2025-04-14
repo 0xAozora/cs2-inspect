@@ -2,7 +2,7 @@ package auth
 
 import (
 	inspect "cs2-inspect"
-	"fmt"
+	"errors"
 
 	"github.com/0xAozora/go-steam"
 	"github.com/0xAozora/go-steam/protocol/protobuf"
@@ -30,15 +30,17 @@ type Authenticator struct {
 	mailer *Mailer
 }
 
-func (a *Authenticator) GetCode(codeType protobuf.EAuthSessionGuardType) string {
+func (a *Authenticator) GetCode(codeType protobuf.EAuthSessionGuardType, callback func(string, protobuf.EAuthSessionGuardType) error) error {
 
 	if codeType != protobuf.EAuthSessionGuardType_k_EAuthSessionGuardType_EmailCode {
-		fmt.Println("Code Not Supported")
-		return ""
+		return errors.New("code not supported")
 	}
 
-	ch := make(chan string, 1)
-	a.mailer.Get(a.Name, ch)
+	go func() {
+		ch := make(chan string, 1)
+		a.mailer.Get(a.Name, ch)
+		callback(<-ch, codeType)
+	}()
 
-	return <-ch
+	return nil
 }

@@ -3,8 +3,8 @@ module cs2-inspect
 go 1.24.1
 
 require (
-	github.com/0xAozora/epoller v0.0.0-20220213030110-a1fa94842414
-	github.com/0xAozora/go-steam v0.0.0-20250403205905-d76369de9f0c
+	github.com/0xAozora/epoller v0.0.0-20250414020023-0667fee052a3
+	github.com/0xAozora/go-steam v0.0.0-20250414135755-e8b0df224654
 	github.com/emirpasic/gods v1.18.1
 	github.com/rs/zerolog v1.34.0
 	github.com/tinylib/msgp v1.2.5

@@ -77,7 +77,7 @@ func NewHandler(len, cap, poolsize int, proxyList *ProxyList, ignoreProxy bool, 
 		proxyList = &ProxyList{}
 	}
 
-	epoll, err := epoller.NewPoller()
+	epoll, err := epoller.NewPoller(poolsize, 0)
 	if err != nil {
 		return nil, err
 	}

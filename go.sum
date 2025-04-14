@@ -1,7 +1,9 @@
-github.com/0xAozora/epoller v0.0.0-20220213030110-a1fa94842414 h1:CNhWnkdvMv/lOsr14kCdOwODmxohyNWb/QiFkeqeMq4=
-github.com/0xAozora/epoller v0.0.0-20220213030110-a1fa94842414/go.mod h1:nbwC5alvhuQ5msA9T0nJL1Hnhcgn0rr+p7fTxZ1P4vo=
+github.com/0xAozora/epoller v0.0.0-20250414020023-0667fee052a3 h1:AsKHjLI96TYP3L+DmjoI8icxmXtOlxXPVLiKTNb2ZXs=
+github.com/0xAozora/epoller v0.0.0-20250414020023-0667fee052a3/go.mod h1:nbwC5alvhuQ5msA9T0nJL1Hnhcgn0rr+p7fTxZ1P4vo=
 github.com/0xAozora/go-steam v0.0.0-20250403205905-d76369de9f0c h1:+wSl54QULeoT+6GwrIs9sSMnCokOVs0phomLqmkEnHg=
 github.com/0xAozora/go-steam v0.0.0-20250403205905-d76369de9f0c/go.mod h1:5DbnArxHVDqDIs7rqZa2C4lbtOlXJ80lyV2JXTu3sb0=
+github.com/0xAozora/go-steam v0.0.0-20250414135755-e8b0df224654 h1:XP33qUPJ5fvdiYy1RHEIxCIg1qTp9U9bju7S2NzUT14=
+github.com/0xAozora/go-steam v0.0.0-20250414135755-e8b0df224654/go.mod h1:5DbnArxHVDqDIs7rqZa2C4lbtOlXJ80lyV2JXTu3sb0=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/emirpasic/gods v1.18.1 h1:FXtiHYKDGKCW2KzwZKx0iC0PQmdlorYgdFG9jPXJ1Bc=
 github.com/emirpasic/gods v1.18.1/go.mod h1:8tpGGwCnJ5H4r6BWwaV6OrWmMoPhUl5jm/FMNAnJvWQ=

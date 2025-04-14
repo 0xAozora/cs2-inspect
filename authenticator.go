@@ -1,6 +1,7 @@
 package inspect
 
 import (
+	"errors"
 	"time"
 
 	"github.com/0xAozora/go-steam"
@@ -16,10 +17,10 @@ type TwoFactorAuthenticator struct {
 	bot *Bot
 }
 
-func (a *TwoFactorAuthenticator) GetCode(codeType protobuf.EAuthSessionGuardType) string {
+func (a *TwoFactorAuthenticator) GetCode(codeType protobuf.EAuthSessionGuardType, callback func(string, protobuf.EAuthSessionGuardType) error) error {
 
 	if codeType != protobuf.EAuthSessionGuardType_k_EAuthSessionGuardType_DeviceCode {
-		return ""
+		return errors.New("code not supported")
 	}
 
 	code, err := totp.GenerateTotpCode(a.bot.SharedSecret, time.Now())
@@ -27,5 +28,5 @@ func (a *TwoFactorAuthenticator) GetCode(codeType protobuf.EAuthSessionGuardType
 		a.bot.log.Err(err).Msg("Failed to generate TOTP code")
 	}
 
-	return code
+	return callback(code, codeType)
 }

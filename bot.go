@@ -85,9 +85,7 @@ func (bot *Bot) Connect(dialer proxy.Dialer) net.Conn {
 
 	bot.status = CONNECTED
 
-	// Repoint Interface
-	ptr := unsafe.Add(unsafe.Pointer(&bot.client.Conn), uintptr(8))
-	conn := **(***net.TCPConn)(ptr)
+	conn := getTCPConn(bot.client)
 	bot.fd = epoller.GetFD(unsafe.Pointer(conn))
 
 	return conn

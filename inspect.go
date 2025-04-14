@@ -3,7 +3,6 @@ package inspect
 import (
 	cs2 "cs2-inspect/cs2/protocol/protobuf"
 	"cs2-inspect/types"
-	"net"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -131,10 +130,7 @@ func (h *Handler) inspectLoop() {
 
 				if err := bot.Inspect(s, item.A, item.D, m); err != nil {
 
-					// We need to recover the tcp conn to remove it in the con -> bot map
-					// Schenanigans
-					ptr := unsafe.Add(unsafe.Pointer(&bot.client.Conn), uintptr(8))
-					conn := **(***net.TCPConn)(ptr)
+					conn := getTCPConn(bot.client)
 
 					// Push to pool, we want to avoid stalling for the function
 					h.Pool.Schedule(func() {

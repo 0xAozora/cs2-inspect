@@ -2,6 +2,8 @@ github.com/0xAozora/epoller v0.0.0-20250414020023-0667fee052a3 h1:AsKHjLI96TYP3L
 github.com/0xAozora/epoller v0.0.0-20250414020023-0667fee052a3/go.mod h1:nbwC5alvhuQ5msA9T0nJL1Hnhcgn0rr+p7fTxZ1P4vo=
 github.com/0xAozora/go-steam v0.0.0-20250414150026-b27aac88f1b8 h1:619vfNl5skb94ow8JKkuplq6RsChtYF0YLeHrylF2B0=
 github.com/0xAozora/go-steam v0.0.0-20250414150026-b27aac88f1b8/go.mod h1:5DbnArxHVDqDIs7rqZa2C4lbtOlXJ80lyV2JXTu3sb0=
+github.com/0xAozora/non-blocking-dialer v0.0.0-20250414014354-e72d1c0871ef h1:MTrG8cvla6Cs6xxXVuS3s+m1LLJ3HfSJctHhbYLHV74=
+github.com/0xAozora/non-blocking-dialer v0.0.0-20250414014354-e72d1c0871ef/go.mod h1:+qJqDkhY5NpAlgrwdGiSXa9X0NrirMTRQihTBl4dNKY=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/emirpasic/gods v1.18.1 h1:FXtiHYKDGKCW2KzwZKx0iC0PQmdlorYgdFG9jPXJ1Bc=
 github.com/emirpasic/gods v1.18.1/go.mod h1:8tpGGwCnJ5H4r6BWwaV6OrWmMoPhUl5jm/FMNAnJvWQ=

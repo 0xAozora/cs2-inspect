@@ -17,14 +17,15 @@ import (
 	"github.com/0xAozora/go-steam/protocol/protobuf"
 	"github.com/0xAozora/go-steam/protocol/steamlang"
 	"github.com/rs/zerolog"
-	"golang.org/x/net/proxy"
 	"google.golang.org/protobuf/proto"
 )
 
 type Handler struct {
-	bots     map[net.Conn]*Bot
-	botQueue []*Bot
-	botMutex sync.RWMutex // Mutex for everything above
+	bots      map[net.Conn]*Bot
+	conns     map[net.Conn]*NonBlockConn
+	botQueue  []*Bot
+	botMutex  sync.RWMutex
+	connMutex sync.RWMutex
 
 	items        map[uint64]*InspectTask // Map assetID directly to InspectTask
 	ItemMutex    sync.Mutex              // Mutex for ItemMap
@@ -43,7 +44,8 @@ type Handler struct {
 	heartbeats        map[string]int64 // Map BotName to Next Heartbeat
 	heartbeatMutex    sync.Mutex       // Mutex for the map
 
-	epoll epoller.Poller
+	readPoller  epoller.Poller
+	writePoller epoller.Poller
 
 	metricsLogger MetricsLogger
 	tokenDB       TokenDB
@@ -78,7 +80,11 @@ func NewHandler(len, cap, poolsize int, proxyList *ProxyList, ignoreProxy bool, 
 		proxyList = &ProxyList{}
 	}
 
-	epoll, err := epoller.NewPoller(poolsize, 0)
+	readpoll, err := epoller.NewPoller(poolsize, 0)
+	if err != nil {
+		return nil, err
+	}
+	writepoll, err := epoller.NewPoller(10, epoller.EPOLLOUT|epoller.EPOLLONESHOT)
 	if err != nil {
 		return nil, err
 	}
@@ -86,11 +92,14 @@ func NewHandler(len, cap, poolsize int, proxyList *ProxyList, ignoreProxy bool, 
 	timeTree := NewTimeTree()
 
 	handler := Handler{
-		bots:     make(map[net.Conn]*Bot),
-		botQueue: make([]*Bot, 0, len),
-		items:    make(map[uint64]*InspectTask),
-		epoll:    epoll,
-		tokenDB:  tokenDB,
+		bots:  make(map[net.Conn]*Bot),
+		conns: make(map[net.Conn]*NonBlockConn),
+
+		botQueue:    make([]*Bot, 0, len),
+		items:       make(map[uint64]*InspectTask),
+		readPoller:  readpoll,
+		writePoller: writepoll,
+		tokenDB:     tokenDB,
 
 		timeTree:          timeTree,
 		heartbeatInterval: 9, // Just in case steam returns 0
@@ -120,6 +129,7 @@ func NewHandler(len, cap, poolsize int, proxyList *ProxyList, ignoreProxy bool, 
 	}()
 
 	go handler.handleClients()
+	go handler.pollConnections()
 
 	go handler.inspectLoop()
 
@@ -149,60 +159,6 @@ func (h *Handler) AddBot(bot *Bot) error {
 	})
 
 	return nil
-}
-
-// When we encounter an error, we won't try connecting again (except the Connect function)
-func (h *Handler) connectBot(bot *Bot) {
-
-	// Usually sticky IP is determined on unique password, while proxy IP and username can be the same
-	// So we use the password slice as an identifier if we have enough unique proxies
-	if bot.index > len(h.proxyList.Passwords)-1 {
-		h.log.Warn().
-			Str("bot", bot.Name).
-			Msg("No Proxy available for this Bot")
-
-		if !h.ignoreProxy {
-			return
-		}
-
-		conn := bot.Connect(nil)
-		_ = h.epoll.Add(conn, bot.fd)
-
-		h.botMutex.Lock()
-		h.bots[conn] = bot
-		h.botMutex.Unlock()
-		return
-	}
-
-	var addr string
-	if h.proxyList.Address != "" {
-		addr = h.proxyList.Address
-	} else {
-		addr = h.proxyList.Addresses[bot.index]
-	}
-
-	var user string
-	if h.proxyList.Username != "" {
-		user = h.proxyList.Username
-	} else {
-		user = h.proxyList.Usernames[bot.index]
-	}
-
-	dialer, err := proxy.SOCKS5("tcp", addr, &proxy.Auth{User: user, Password: h.proxyList.Passwords[bot.index]}, &net.Dialer{Timeout: 10 * time.Second})
-	if err != nil {
-		h.log.Err(err).
-			Str("bot", bot.Name).
-			Str("proxy", addr).
-			Msg("Error creating proxy dialer")
-		return
-	}
-
-	conn := bot.Connect(dialer)
-	_ = h.epoll.Add(conn, bot.fd)
-
-	h.botMutex.Lock()
-	h.bots[conn] = bot
-	h.botMutex.Unlock()
 }
 
 func (h *Handler) loginBot(bot *Bot) {
@@ -303,9 +259,9 @@ func (h *Handler) handleClients() {
 	var err error
 	for {
 
-		conns, err = h.epoll.Wait(100)
+		conns, err = h.readPoller.Wait(0) // 0 has no effect, it will use conbuffersize
 		if err != nil {
-			h.log.Fatal().Err(err).Msg("Epoll Error")
+			h.log.Fatal().Err(err).Msg("EpollR Error")
 		}
 
 		for _, conn := range conns {
@@ -316,6 +272,12 @@ func (h *Handler) handleClients() {
 
 			// Avoid Read of Broken Connection
 			if bot == nil {
+				continue
+			}
+
+			// Bot still in connection phase (doing socks5 handshake)
+			if bot.status == DISCONNECTED {
+				h.handleSocks5(bot, conn)
 				continue
 			}
 
@@ -356,13 +318,14 @@ func (h *Handler) handleError(bot *Bot, conn net.Conn, sleep time.Duration, err 
 	h.removeHeartbeat(bot)
 
 	// Remove File Descriptor from poller to avoid EOF error
-	if bot.status != DISCONNECTED {
+	if fd := bot.fd; fd != 0 {
 
 		h.botMutex.Lock()
 		delete(h.bots, conn)
-		_ = h.epoll.Remove(bot.fd)
 		h.botMutex.Unlock()
 
+		bot.fd = 0
+		_ = h.readPoller.Remove(fd)
 		bot.client.Disconnect()
 	}
 
@@ -479,7 +442,26 @@ func (h *Handler) handlePacket(bot *Bot, conn net.Conn, packet *protocol.Packet)
 			Msg("Requesting free license")
 
 		err = bot.client.Write(protocol.NewClientMsgProtobuf(steamlang.EMsg_ClientRequestFreeLicense, &protobuf.CMsgClientRequestFreeLicense{Appids: []uint32{730}}))
+	// Csgo Flow
+	case steamlang.EMsg_ClientRequestFreeLicenseResponse:
 
+		h.log.Info().
+			Str("bot", bot.Name).
+			Msg("Play cs2")
+
+		err = bot.client.GC.SetGamesPlayed(730)
+	case steamlang.EMsg_ClientGameConnectTokens:
+
+		h.log.Info().
+			Str("bot", bot.Name).
+			Msg("Send Hello")
+
+		err = bot.client.GC.Write(gamecoordinator.NewGCMsgProtobuf(730,
+			uint32(cs2.EGCBaseClientMsg_k_EMsgGCClientHello),
+			&cs2.CMsgClientHello{
+				Version: proto.Uint32(2000244),
+			},
+		))
 	case steamlang.EMsg_ClientSessionToken:
 	case steamlang.EMsg_ClientLoggedOff:
 		msg := c.Auth.HandleLoggedOff(packet)
@@ -515,27 +497,6 @@ func (h *Handler) handlePacket(bot *Bot, conn net.Conn, packet *protocol.Packet)
 		delete(c.JobHandlers, uint64(packet.TargetJobId))
 		c.JobMutex.Unlock()
 		err = fn(packet)
-	// Csgo Flow
-	case steamlang.EMsg_ClientRequestFreeLicenseResponse:
-
-		h.log.Info().
-			Str("bot", bot.Name).
-			Msg("Play cs2")
-
-		err = bot.client.GC.SetGamesPlayed(730)
-	case steamlang.EMsg_ClientGameConnectTokens:
-
-		h.log.Info().
-			Str("bot", bot.Name).
-			Msg("Send Hello")
-
-		err = bot.client.GC.Write(gamecoordinator.NewGCMsgProtobuf(730,
-			uint32(cs2.EGCBaseClientMsg_k_EMsgGCClientHello),
-			&cs2.CMsgClientHello{
-				Version: proto.Uint32(2000244),
-			},
-		))
-
 	// GC
 	case steamlang.EMsg_ClientFromGC:
 

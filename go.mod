@@ -1,4 +1,4 @@
-module cs2-inspect
+module github.com/0xAozora/cs2-inspect
 
 go 1.24.1
 

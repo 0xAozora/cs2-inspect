@@ -1,8 +1,9 @@
 package auth
 
 import (
-	inspect "cs2-inspect"
 	"errors"
+
+	inspect "github.com/0xAozora/cs2-inspect"
 
 	"github.com/0xAozora/go-steam"
 	"github.com/0xAozora/go-steam/protocol/protobuf"

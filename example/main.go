@@ -1,14 +1,15 @@
 package main
 
 import (
-	inspect "cs2-inspect"
-	"cs2-inspect/types"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
 	"time"
 	"unsafe"
+
+	inspect "github.com/0xAozora/cs2-inspect"
+	"github.com/0xAozora/cs2-inspect/types"
 
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"

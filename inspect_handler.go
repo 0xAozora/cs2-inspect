@@ -1,13 +1,14 @@
 package inspect
 
 import (
-	cs2 "cs2-inspect/cs2/protocol/protobuf"
 	"errors"
 	"net"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	cs2 "github.com/0xAozora/cs2-inspect/cs2/protocol/protobuf"
 
 	"github.com/0xAozora/epoller"
 	"github.com/0xAozora/go-steam"
